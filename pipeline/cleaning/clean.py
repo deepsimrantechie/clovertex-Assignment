@@ -18,6 +18,8 @@ def clean_alpha_patients(df):
     df["date_of_birth"] = pd.to_datetime(df["date_of_birth"], errors="coerce")
 
     df["source"] = "site_alpha"
+    df["gender"] = df["gender"].str.lower().str.strip()
+    df["gender"] = df["gender"].replace({"f": "female", "m": "male"})
 
     print("Alpha cleaned. Rows:", len(df))
     return df
@@ -47,10 +49,10 @@ def clean_beta_patients(df):
     df["date_of_birth"] = pd.to_datetime(df["date_of_birth"], errors="coerce")
 
     df["source"] = "site_beta"
-
+    df["gender"] = df["gender"].str.lower().str.strip()
+    df["gender"] = df["gender"].replace({"f": "female", "m": "male"})
     print("Beta cleaned. Rows:", len(df))
     return df
-
 
 def clean_gamma_lab_results(df):
 
@@ -58,6 +60,10 @@ def clean_gamma_lab_results(df):
 
     df.columns = df.columns.str.lower().str.replace(" ", "_")
     df = df.fillna("unknown")
+
+    # this line converts test_value to number — text becomes NaN
+    df["test_value"] = pd.to_numeric(df["test_value"], errors="coerce")
+
     df = df.drop_duplicates(subset=["lab_result_id"])
 
     df["collection_date"] = pd.to_datetime(df["collection_date"], errors="coerce")
