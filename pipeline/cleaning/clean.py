@@ -18,6 +18,7 @@ def clean_alpha_patients(df):
     df["date_of_birth"] = pd.to_datetime(df["date_of_birth"], errors="coerce")
 
     df["source"] = "site_alpha"
+    # standardise gender values
     df["gender"] = df["gender"].str.lower().str.strip()
     df["gender"] = df["gender"].replace({"f": "female", "m": "male"})
 
@@ -49,10 +50,13 @@ def clean_beta_patients(df):
     df["date_of_birth"] = pd.to_datetime(df["date_of_birth"], errors="coerce")
 
     df["source"] = "site_beta"
+    # standardise gender values
     df["gender"] = df["gender"].str.lower().str.strip()
     df["gender"] = df["gender"].replace({"f": "female", "m": "male"})
+
     print("Beta cleaned. Rows:", len(df))
     return df
+
 
 def clean_gamma_lab_results(df):
 
@@ -72,7 +76,6 @@ def clean_gamma_lab_results(df):
 
     print("Gamma lab results cleaned. Rows:", len(df))
     return df
-
 
 def clean_general(df, source_name):
 
