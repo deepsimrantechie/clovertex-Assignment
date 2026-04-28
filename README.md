@@ -31,7 +31,7 @@ This pipeline solves that problem by:
 
 1. Reading raw data from 3 hospital sites in different formats
 2. Cleaning and standardising everything into a consistent schema
-3. Organising it into a 3-layer data lake (raw → refined → consumption)
+3. Organising it into a 3-layer data lake (raw → refined → consumption)(Medallion Architecture)
 4. Computing patient demographics, lab statistics, and anomaly detection
 5. Generating 6 analytical charts saved as PNG files
 
@@ -116,7 +116,7 @@ clovertex-pipeline/
 │   │
 │   └── utils/
 │       ├── __init__.py
-│       └── logger.py                  # Reserved for shared logging utilities
+│       └── logger.py                  # Reserved for shared logging utilities(fututre utilties)
 │
 ├── Dockerfile                         # Docker container setup
 ├── docker-compose.yml                 # Easy one-command Docker run
@@ -231,14 +231,14 @@ Final outputs saved to `datalake/consumption/` as Parquet.
 
 ```
 datalake/
-├── raw/               Original files saved after loading — never modified
+├── raw/               Original files saved after loading — never modified(bronze layer)
 │                      Used for: traceability, debugging, audit trail
 │
-├── refined/           Cleaned Parquet files — one per dataset
+├── refined/           Cleaned Parquet files — one per dataset(silver layer)
 │                      Used for: downstream analysis, ML, reporting
 │
 └── consumption/       Final analytics-ready outputs
-    ├── *.parquet      Unified patients, anomaly-flagged labs, diagnosis frequency
+    ├── *.parquet      Unified patients, anomaly-flagged labs, diagnosis frequency(gold layer)
     └── plots/         PNG charts ready for reporting
 ```
 
@@ -248,7 +248,7 @@ Parquet is a columnar file format. Unlike CSV which reads all columns every time
 
 **Why three layers?**
 
-Each layer serves a different purpose. Raw preserves the original data exactly. If a cleaning bug is discovered later, the original is always recoverable. Refined is the clean version ready for analysis. Consumption is the final output that analysts and dashboards would read from.
+Each layer serves a different purpose(Medallion Architecture). Raw preserves the original data exactly. If a cleaning bug is discovered later, the original is always recoverable. Refined is the clean version ready for analysis. Consumption is the final output that analysts and dashboards would read from.
 
 ---
 
