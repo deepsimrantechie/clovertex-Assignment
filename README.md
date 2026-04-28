@@ -242,72 +242,55 @@ datalake/
     └── plots/         PNG charts ready for reporting
 ```
 
-**Why Parquet for refined and consumption layers?**
+**Why Parquet for refined and consumption layers?**  
+Parquet is a columnar format that reads only required columns, making it faster than CSV for analytical workloads. It also provides built-in compression, reducing storage size.
 
-Parquet is a columnar file format. Unlike CSV which reads all columns every time, Parquet only reads the columns you ask for. For a dataset with 20 columns where you only need 3, Parquet is significantly faster. It also compresses data automatically making files smaller on disk.
-
-**Why three layers?**
-
-Each layer serves a different purpose(Medallion Architecture). Raw preserves the original data exactly. If a cleaning bug is discovered later, the original is always recoverable. Refined is the clean version ready for analysis. Consumption is the final output that analysts and dashboards would read from.
+**Why three layers?**  
+Each layer has a clear role (Medallion Architecture): raw preserves original data for recovery, refined holds cleaned data for analysis, and consumption contains final, analytics-ready outputs.
 
 ---
 
 ## Data Cleaning Decisions
 
-**Why `fillna("unknown")` instead of dropping rows?**
+**Why `fillna("unknown")` instead of dropping rows?**  
+Clinical records remain valuable even with missing fields. Dropping rows could remove important patient history, so missing values are marked as `"unknown"` to keep data complete and explicit.
 
-In clinical data, a patient record is valuable even if some fields are incomplete. Dropping a row because one field is missing could mean losing a patient's entire diagnosis and medication history from downstream analysis. Filling with `"unknown"` keeps the record visible and makes missing data explicit rather than hidden.
+**Why flatten nested JSON fields (Beta patients)?**  
+Nested fields (`contact`, `encounter`) contain dictionaries that cannot be directly used in analysis. They were flattened into columns to enable filtering, joins, and computations.
 
-**Why flatten nested JSON fields in Beta patients?**
+**Why `pd.to_numeric(errors='coerce')` for lab values?**  
+The `test_value` column included invalid entries like `"ERROR"` and `"N/A"`. This approach converts valid values and safely handles invalid ones as `NaN` without breaking the pipeline.
 
-Pandas cannot perform calculations or comparisons on dictionary values inside cells. The `contact` and `encounter` columns each contained a dictionary per row. These were flattened into separate flat columns so they could be used in joins, filters and analysis.
-
-**Why `pd.to_numeric(errors='coerce')` for Gamma lab values?**
-
-The `test_value` column contained a mix of numeric strings and text entries like `"ERROR"` and `"N/A"` due to data entry issues. `pd.to_numeric` with `errors='coerce'` converts valid numbers and turns invalid text into `NaN` rather than crashing the pipeline. This is safer than dropping all non-numeric rows.
-
-**Why standardise gender values?**
-
-Alpha stored gender as `F` and `M`. Beta stored it as `female` and `male`. Additionally some rows had `FEMALE`, `f`, or blank values. All were standardised to `female` and `male` so both datasets could be combined and analysed together without double counting.
-
----
+**Why standardise gender values?**  
+Different formats (`F/M`, `female/male`, mixed cases) were unified into consistent values to ensure accurate aggregation and avoid duplication during analysis.
 
 ## Anomaly Detection Logic
 
 Anomalies in lab results are flagged per test type using the Z-score method.
 
 For each test type (e.g. hba1c, creatinine, glucose):
-1. Calculate the mean and standard deviation of all values for that test
-2. For each individual value, calculate how many standard deviations it is from the mean
-3. If the distance is greater than 2 standard deviations, flag it as `is_anomaly = True`
+1. Compute the mean and standard deviation  
+2. Measure how far each value deviates from the mean  
+3. Flag values beyond 2 standard deviations as `is_anomaly = True`  
 
-**Why per test type?**
+**Why per test type?**  
+Different tests have different units and scales, so comparisons must be made within each test type.
 
-hba1c and creatinine have completely different units and scales. Comparing a creatinine value to an hba1c mean would be meaningless. Anomaly detection must be done within each test type independently.
+**Why 2 standard deviations?**  
+Around 95% of values lie within 2 standard deviations in a normal distribution. Values outside this range are statistically unusual and may indicate errors or clinically significant results.
 
-**Why 2 standard deviations?**
-
-In a normal distribution, approximately 95% of values fall within 2 standard deviations of the mean. Values outside this range are statistically unusual. In a clinical context, an abnormally high or low lab value could indicate a data entry error, equipment malfunction, or a genuinely critical patient result worth investigating.
-
-The flagged anomalies are saved in `datalake/consumption/lab_results_with_anomalies.parquet` and visualised in the genomics scatter plot with red dots.
-
----
+The flagged anomalies are stored in `datalake/consumption/lab_results_with_anomalies.parquet` and used in visualisations.
 
 ## Visualisations
 
 All charts are generated using `matplotlib` and saved to `datalake/consumption/plots/`.
 
-**age_distribution.png** — Shows how patient ages are distributed across both hospital sites combined. Helps identify the demographic profile of the patient population.
-
-**gender_split.png** — Bar chart showing the count of male, female and unknown patients after standardisation.
-
-**diagnosis_frequency.png** — Horizontal bar chart of the top 15 most common ICD-10 diagnosis codes by unique patient count. Horizontal layout was chosen because ICD-10 codes are long strings that would overlap on a vertical chart.
-
-**lab_distribution.png** — Side-by-side histograms for the first 2 lab test types showing how values are distributed. Reference range boundaries can be added once integrated with `lab_test_ranges.json`.
-
-**genomics_scatter.png** — Scatter plot of allele frequency vs read depth for all genomic variants. Each dot is coloured by clinical significance: red for Pathogenic, orange for Likely Pathogenic, green for Benign, gray for Uncertain. Higher read depth means more reliable sequencing.
-
-**data_quality.png** — Two bar charts side by side: left shows row count per dataset, right shows null value count per dataset. Gives a quick overview of data completeness across all sources.
+- **age_distribution.png** — Distribution of patient ages across all sites  
+- **gender_split.png** — Count of male, female, and unknown patients after standardisation  
+- **diagnosis_frequency.png** — Top 15 ICD-10 diagnoses by unique patient count (horizontal for readability)  
+- **lab_distribution.png** — Histograms of lab test values; reference ranges can be added later  
+- **genomics_scatter.png** — Allele frequency vs read depth, coloured by clinical significance  
+- **data_quality.png** — Row count and null value comparison across datasets  
 
 ---
 
@@ -378,25 +361,63 @@ The CI badge reflects the status of the latest push on `main`.
 
 ---
 
+## Assignment Coverage
+
+### Task 1 — Ingestion & Cleaning
+- Ingest all datasets — Done  
+- Data cleaning and standardisation — Done  
+- Unified patient schema — Done  
+- Export cleaned data as Parquet — Done  
+- Structured dataset stats — Done  
+- Full dataset joins (patients + labs + meds + diagnoses) — Partial  
+- data_quality_report.json — Not implemented  
+
+---
+
+### Task 2 — Data Lake
+- 3-layer architecture (raw → refined → consumption) — Done  
+- Raw data preserved — Done  
+- Cleaned data in Parquet (refined) — Done  
+- Analytics outputs (consumption) — Done  
+- manifest.json per layer — Not implemented  
+- Dataset partitioning — Not implemented  
+
+---
+
+### Task 3 — Analytics & Anomaly Detection
+- Patient demographics — Done  
+- Lab statistics per test — Done  
+- Diagnosis frequency — Done  
+- Anomaly detection (Z-score) — Done  
+- Reference range validation — Partial  
+- Genomics hotspot analysis — Not implemented  
+- High-risk patient detection — Not implemented  
+
+---
+
+### Task 4 — Visualisations
+- Age distribution — Done  
+- Gender split — Done  
+- Diagnosis frequency — Done  
+- Lab distribution — Partial (reference overlay not added)  
+- Genomics scatter plot — Done  
+- High-risk summary — Not implemented  
+- Data quality overview — Done  
+
+---
+
+### Task 5 — Docker & CI/CD
+- Dockerfile and containerisation — Done  
+- docker-compose pipeline execution — Done  
+- GitHub Actions CI (main branch) — Done  
+
 ## Future Improvements
 
-The `pipeline/transformation/` module is currently empty and reserved for the following planned work:
-
-**1. Unified patient table**
-Join alpha and beta patients with their diagnoses, medications and lab results using `patient_id` to create one complete patient-centric view. This is the standard approach for clinical analytics and would enable cross-domain queries like "show me all patients with diabetes who are on metformin".
-
-**2. High-risk patient identification**
-Identify patients who have both an HbA1c reading above 7.0 (diabetic range) AND at least one Pathogenic or Likely Pathogenic genomic variant. This cross-domain analysis combines lab data with genomics data.
-
-**3. Manifest files per data lake zone**
-Generate a `manifest.json` for each layer containing file names, row counts, column schemas, processing timestamps and SHA-256 checksums. This makes the data lake self-documenting and auditable.
-
-**4. Lab reference range integration**
-Use `data/reference/lab_test_ranges.json` to flag lab values that fall outside the clinically defined normal ranges rather than using purely statistical Z-score detection.
-
-**5. Clinical notes classification**
-The `note_category` column in `clinical_notes_metadata.csv` contains free-text descriptions. A rule-based or LLM-based classifier could map these to standardised categories: Admission, Discharge, Progress, Surgical, Consultation, Lab Review, Other.
-
+- **Unified patient table** — Join all datasets into a single patient-centric view  
+- **High-risk detection** — HbA1c > 7 + pathogenic variants  
+- **Manifest files** — Metadata (schema, counts, timestamps, checksums) per layer  
+- **Lab ranges** — Use clinical reference ranges over Z-score only  
+- **Notes classification** — Standardise free-text categories
 ---
 
 ## Author
