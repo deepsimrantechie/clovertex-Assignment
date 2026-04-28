@@ -35,9 +35,7 @@ from pipeline.stats.visualise import (
 )
 
 
-print("========================================")
-print("   Clovertex Data Pipeline Starting     ")
-print("========================================")
+print("pipeline starting here")
 
 
 # ── Phase 1: Ingest ──────────────────────────
@@ -125,6 +123,4 @@ plot_data_quality(alpha, beta, gamma)
 print("All charts saved to datalake/consumption/plots/")
 
 
-print("\n========================================")
-print("        Pipeline Complete!              ")
-print("========================================")
+print("pipeline completed")
